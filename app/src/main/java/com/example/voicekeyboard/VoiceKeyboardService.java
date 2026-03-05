@@ -21,14 +21,15 @@ public class VoiceKeyboardService extends InputMethodService {
     private SpeechRecognizer speechRecognizer;
     private Intent speechIntent;
     private Button voiceButton;
+    private Button readAloudButton;
     private TextToSpeech tts;
     private View keyboardView;
+    private String lastSpokenText = ""; // Memory to hold the text for the manual button
 
     @Override
     public void onCreate() {
         super.onCreate();
         
-        // The Mouth: Initialize Text-to-Speech
         tts = new TextToSpeech(this, status -> {
             if (status == TextToSpeech.SUCCESS) {
                 tts.setLanguage(Locale.US);
@@ -46,18 +47,104 @@ public class VoiceKeyboardService extends InputMethodService {
             @Override public void onRmsChanged(float rmsdB) {}
             @Override public void onBufferReceived(byte[] buffer) {}
             @Override public void onEndOfSpeech() { voiceButton.setText("Processing..."); }
-            @Override public void onError(int error) { voiceButton.setText("🎤 Tap to Speak (AI Auto-Correct)"); }
+            @Override public void onError(int error) { voiceButton.setText("🎤 Tap to Speak"); }
             @Override public void onResults(Bundle results) {
                 ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
                 if (matches != null && !matches.isEmpty()) {
-                    String spokenText = matches.get(0);
+                    lastSpokenText = matches.get(0);
                     InputConnection ic = getCurrentInputConnection();
                     if (ic != null) {
-                        // Type it out
-                        ic.commitText(spokenText + " ", 1); 
-                        // Speak it back automatically
-                        tts.speak(spokenText, TextToSpeech.QUEUE_FLUSH, null, null);
+                        ic.commitText(lastSpokenText + " ", 1); 
+                        
+                        // Check settings to see if it should talk automatically
+                        SharedPreferences prefs = getSharedPreferences("KeyboardPrefs", MODE_PRIVATE);
+                        boolean autoTts = prefs.getBoolean("autoTts", true);
+                        if (autoTts) {
+                            tts.speak(lastSpokenText, TextToSpeech.QUEUE_FLUSH, null, null);
+                        }
                     }
                 }
-                voiceButton.setText("🎤 Tap to Speak (AI Auto-Correct)");
+                voiceButton.setText("🎤 Tap to Speak");
             }
+            @Override public void onPartialResults(Bundle partialResults) {}
+            @Override public void onEvent(int eventType, Bundle params) {}
+        });
+    }
+
+    @Override
+    public View onCreateInputView() {
+        keyboardView = getLayoutInflater().inflate(R.layout.keyboard_view, null);
+        voiceButton = keyboardView.findViewById(R.id.btn_voice);
+        readAloudButton = keyboardView.findViewById(R.id.btn_read_aloud);
+        
+        voiceButton.setOnClickListener(v -> {
+            voiceButton.setText("Starting mic...");
+            speechRecognizer.startListening(speechIntent);
+        });
+
+        // Tells the manual button to read the saved text when tapped
+        readAloudButton.setOnClickListener(v -> {
+            if (!lastSpokenText.isEmpty()) {
+                tts.speak(lastSpokenText, TextToSpeech.QUEUE_FLUSH, null, null);
+            } else {
+                tts.speak("No text to read yet.", TextToSpeech.QUEUE_FLUSH, null, null);
+            }
+        });
+        
+        applyCustomSettings();
+        return keyboardView;
+    }
+
+    private void applyCustomSettings() {
+        SharedPreferences prefs = getSharedPreferences("KeyboardPrefs", MODE_PRIVATE);
+        
+        // Hide or Show the manual read button based on settings
+        boolean autoTts = prefs.getBoolean("autoTts", true);
+        if (autoTts) {
+            readAloudButton.setVisibility(View.GONE); // Hide it
+        } else {
+            readAloudButton.setVisibility(View.VISIBLE); // Show it
+        }
+
+        int height = prefs.getInt("height", 250);
+        float density = getResources().getDisplayMetrics().density;
+        int pxHeight = (int) (height * density); 
+        
+        LinearLayout mainLayout = (LinearLayout) keyboardView;
+        ViewGroup.LayoutParams params = mainLayout.getLayoutParams();
+        if (params == null) params = new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, pxHeight);
+        params.height = pxHeight;
+        mainLayout.setLayoutParams(params);
+
+        int activeColor = Color.TRANSPARENT; 
+        String theme = prefs.getString("theme", "system");
+        
+        if (theme.equals("custom")) {
+            try {
+                String hex = prefs.getString("hexColor", "#000000");
+                activeColor = Color.parseColor(hex);
+            } catch (Exception e) {
+                activeColor = Color.parseColor("#121212"); 
+            }
+        } else if (theme.equals("dark")) {
+            activeColor = Color.parseColor("#121212");
+        }
+
+        mainLayout.setBackgroundColor(activeColor);
+
+        android.app.Dialog dialog = getWindow();
+        if (dialog != null && dialog.getWindow() != null) {
+            dialog.getWindow().setNavigationBarColor(activeColor);
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (speechRecognizer != null) speechRecognizer.destroy();
+        if (tts != null) {
+            tts.stop();
+            tts.shutdown();
+        }
+    }
+}
