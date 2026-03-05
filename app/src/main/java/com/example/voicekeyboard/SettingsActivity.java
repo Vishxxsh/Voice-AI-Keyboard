@@ -10,6 +10,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.RadioGroup;
 import android.widget.SeekBar;
+import android.widget.Switch;
 import android.widget.Toast;
 
 public class SettingsActivity extends Activity {
@@ -20,6 +21,7 @@ public class SettingsActivity extends Activity {
 
         Button btnEnable = findViewById(R.id.btn_enable);
         Button btnSelect = findViewById(R.id.btn_select);
+        Switch switchAutoTts = findViewById(R.id.switch_auto_tts);
         SeekBar seekHeight = findViewById(R.id.seek_height);
         RadioGroup radioTheme = findViewById(R.id.radio_theme);
         EditText inputHex = findViewById(R.id.input_hex);
@@ -32,6 +34,9 @@ public class SettingsActivity extends Activity {
         });
 
         SharedPreferences prefs = getSharedPreferences("KeyboardPrefs", MODE_PRIVATE);
+        
+        // Load the saved switch state (Defaults to True)
+        switchAutoTts.setChecked(prefs.getBoolean("autoTts", true));
         seekHeight.setProgress(prefs.getInt("height", 250));
         inputHex.setText(prefs.getString("hexColor", "#000000"));
         
@@ -42,6 +47,9 @@ public class SettingsActivity extends Activity {
 
         btnSave.setOnClickListener(v -> {
             SharedPreferences.Editor editor = prefs.edit();
+            
+            // Save the switch state
+            editor.putBoolean("autoTts", switchAutoTts.isChecked());
             editor.putInt("height", seekHeight.getProgress());
             editor.putString("hexColor", inputHex.getText().toString());
             
