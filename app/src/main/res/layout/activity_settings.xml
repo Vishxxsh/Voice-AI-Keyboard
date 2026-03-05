@@ -38,8 +38,7 @@
             android:layout_height="wrap_content"
             android:text="Keyboard Height"
             android:textSize="18sp"
-            android:textColor="?android:attr/textColorPrimary"
-            android:layout_marginTop="16dp"/>
+            android:textColor="?android:attr/textColorPrimary"/>
 
         <SeekBar
             android:id="@+id/seek_height"
@@ -63,10 +62,18 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp">
             
-            <RadioButton android:id="@+id/theme_dark" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Midnight Dark (Recommended)" android:textColor="?android:attr/textColorPrimary" />
-            <RadioButton android:id="@+id/theme_light" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Classic Light" android:textColor="?android:attr/textColorPrimary"/>
-            <RadioButton android:id="@+id/theme_blue" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Deep Blue" android:textColor="?android:attr/textColorPrimary"/>
+            <RadioButton android:id="@+id/theme_system" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="System Default (Auto)" android:textColor="?android:attr/textColorPrimary" />
+            <RadioButton android:id="@+id/theme_dark" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Midnight Dark" android:textColor="?android:attr/textColorPrimary" />
+            <RadioButton android:id="@+id/theme_custom" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Custom Hex Color" android:textColor="?android:attr/textColorPrimary"/>
         </RadioGroup>
+
+        <EditText
+            android:id="@+id/input_hex"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Enter Hex (e.g., #FF0000)"
+            android:textColor="?android:attr/textColorPrimary"
+            android:layout_marginBottom="24dp"/>
 
         <Button
             android:id="@+id/btn_save"
@@ -74,8 +81,7 @@
             android:layout_height="60dp"
             android:text="Save Settings"
             android:backgroundTint="#005A9E"
-            android:textColor="@android:color/white"
-            android:layout_marginTop="32dp"/>
+            android:textColor="@android:color/white"/>
 
     </LinearLayout>
 </ScrollView>
