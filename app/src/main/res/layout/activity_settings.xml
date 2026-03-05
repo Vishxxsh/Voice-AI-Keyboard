@@ -1,40 +1,81 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="24dp"
     android:background="?android:attr/colorBackground">
 
-    <TextView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Keyboard Settings"
-        android:textSize="28sp"
-        android:textStyle="bold"
-        android:textColor="?android:attr/textColorPrimary"
-        android:layout_marginBottom="32dp"/>
+        android:orientation="vertical"
+        android:padding="24dp">
 
-    <Button
-        android:id="@+id/btn_enable"
-        android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:text="1. Enable Keyboard in System"
-        android:layout_marginBottom="16dp"/>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Keyboard Settings"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:textColor="?android:attr/textColorPrimary"
+            android:layout_marginBottom="32dp"/>
 
-    <Button
-        android:id="@+id/btn_select"
-        android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:text="2. Set as Default Keyboard"
-        android:layout_marginBottom="32dp"/>
+        <Button
+            android:id="@+id/btn_enable"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:text="1. Enable Keyboard in System"
+            android:layout_marginBottom="16dp"/>
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Customization (Height, Colors, Spacing) will be added below!"
-        android:textSize="16sp"
-        android:textAlignment="center"
-        android:textColor="?android:attr/textColorSecondary"/>
+        <Button
+            android:id="@+id/btn_select"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:text="2. Set as Default Keyboard"
+            android:layout_marginBottom="32dp"/>
 
-</LinearLayout>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Keyboard Height"
+            android:textSize="18sp"
+            android:textColor="?android:attr/textColorPrimary"
+            android:layout_marginTop="16dp"/>
+
+        <SeekBar
+            android:id="@+id/seek_height"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="400"
+            android:progress="250"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="24dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Keyboard Theme"
+            android:textSize="18sp"
+            android:textColor="?android:attr/textColorPrimary"/>
+
+        <RadioGroup
+            android:id="@+id/radio_theme"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp">
+            
+            <RadioButton android:id="@+id/theme_dark" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Midnight Dark (Recommended)" android:textColor="?android:attr/textColorPrimary" />
+            <RadioButton android:id="@+id/theme_light" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Classic Light" android:textColor="?android:attr/textColorPrimary"/>
+            <RadioButton android:id="@+id/theme_blue" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Deep Blue" android:textColor="?android:attr/textColorPrimary"/>
+        </RadioGroup>
+
+        <Button
+            android:id="@+id/btn_save"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:text="Save Settings"
+            android:backgroundTint="#005A9E"
+            android:textColor="@android:color/white"
+            android:layout_marginTop="32dp"/>
+
+    </LinearLayout>
+</ScrollView>
