@@ -6,35 +6,76 @@
     android:padding="8dp">
 
     <Button
-        android:id="@+id/btn_voice"
+        android:id="@+id/btn_dictate"
         android:layout_width="match_parent"
-        android:layout_height="65dp"
-        android:text="🎤 Tap to Speak"
+        android:layout_height="55dp"
+        android:text="🎤 Dictate (Raw Text)"
         android:backgroundTint="#005A9E"
         android:textColor="@android:color/white"
         android:textSize="18sp"
         android:textStyle="bold"
         android:layout_marginBottom="8dp"/>
 
-    <Button
-        android:id="@+id/btn_read_aloud"
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:text="🔊 Read Text Aloud"
-        android:backgroundTint="#4CAF50"
-        android:textColor="@android:color/white"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:visibility="gone"
-        android:layout_marginBottom="8dp"/>
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="8dp">
+        
+        <Button
+            android:id="@+id/btn_ai_correct"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:text="✨ Correct Grammar"
+            android:backgroundTint="#673AB7"
+            android:textColor="@android:color/white"
+            android:layout_marginEnd="4dp"/>
 
-    <TextView
+        <Button
+            android:id="@+id/btn_ai_draft"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:text="🤖 Draft Message"
+            android:backgroundTint="#E91E63"
+            android:textColor="@android:color/white"
+            android:layout_marginStart="4dp"/>
+    </LinearLayout>
+
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:gravity="center"
-        android:text="Standard Keyboard Area\n(We will add the AI Brain next!)"
-        android:textSize="16sp"
-        android:textColor="?android:attr/textColorPrimary"/>
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btn_read_box"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:text="🔊 Read Box"
+            android:backgroundTint="#4CAF50"
+            android:textColor="@android:color/white"
+            android:layout_marginEnd="4dp"/>
+
+        <Button
+            android:id="@+id/btn_backspace"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="0.5"
+            android:text="⌫"
+            android:backgroundTint="#757575"
+            android:textColor="@android:color/white"
+            android:layout_marginEnd="4dp"/>
+
+        <Button
+            android:id="@+id/btn_switch_kb"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:text="⌨️ Typing"
+            android:backgroundTint="#FF9800"
+            android:textColor="@android:color/white"/>
+    </LinearLayout>
 
 </LinearLayout>
