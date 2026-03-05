@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="?android:attr/colorBackground"
+    android:padding="8dp">
+
+    <Button
+        android:id="@+id/btn_voice"
+        android:layout_width="match_parent"
+        android:layout_height="65dp"
+        android:text="🎤 Tap to Speak (AI Auto-Correct)"
+        android:backgroundTint="#005A9E"
+        android:textColor="@android:color/white"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp"/>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="220dp"
+        android:gravity="center"
+        android:text="Standard Keyboard Area\n(We will build dynamic, resizable keys here next)"
+        android:textSize="16sp"
+        android:textColor="?android:attr/textColorPrimary"/>
+
+</LinearLayout>
