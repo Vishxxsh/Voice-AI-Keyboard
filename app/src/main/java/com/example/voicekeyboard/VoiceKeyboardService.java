@@ -1,26 +1,40 @@
 package com.example.voicekeyboard;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.inputmethodservice.InputMethodService;
 import android.os.Bundle;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
+import android.speech.tts.TextToSpeech;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.inputmethod.InputConnection;
 import android.widget.Button;
-import android.widget.Toast;
+import android.widget.LinearLayout;
 import java.util.ArrayList;
+import java.util.Locale;
 
 public class VoiceKeyboardService extends InputMethodService {
     private SpeechRecognizer speechRecognizer;
     private Intent speechIntent;
     private Button voiceButton;
+    private TextToSpeech tts;
+    private View keyboardView;
 
     @Override
     public void onCreate() {
         super.onCreate();
-        // Set up Android's built-in speech recognizer
+        
+        // The Mouth: Initialize Text-to-Speech
+        tts = new TextToSpeech(this, status -> {
+            if (status == TextToSpeech.SUCCESS) {
+                tts.setLanguage(Locale.US);
+            }
+        });
+
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
         speechIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         speechIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
@@ -32,18 +46,17 @@ public class VoiceKeyboardService extends InputMethodService {
             @Override public void onRmsChanged(float rmsdB) {}
             @Override public void onBufferReceived(byte[] buffer) {}
             @Override public void onEndOfSpeech() { voiceButton.setText("Processing..."); }
-            @Override public void onError(int error) {
-                voiceButton.setText("🎤 Tap to Speak (AI Auto-Correct)");
-                Toast.makeText(VoiceKeyboardService.this, "Mic Error! Please enable Microphone permission in your phone's App Settings.", Toast.LENGTH_LONG).show();
-            }
+            @Override public void onError(int error) { voiceButton.setText("🎤 Tap to Speak (AI Auto-Correct)"); }
             @Override public void onResults(Bundle results) {
-                // Get the spoken words
                 ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
                 if (matches != null && !matches.isEmpty()) {
                     String spokenText = matches.get(0);
                     InputConnection ic = getCurrentInputConnection();
                     if (ic != null) {
-                        ic.commitText(spokenText + " ", 1); // Type it into the app
+                        // Type it out
+                        ic.commitText(spokenText + " ", 1); 
+                        // Speak it back automatically
+                        tts.speak(spokenText, TextToSpeech.QUEUE_FLUSH, null, null);
                     }
                 }
                 voiceButton.setText("🎤 Tap to Speak (AI Auto-Correct)");
@@ -55,7 +68,7 @@ public class VoiceKeyboardService extends InputMethodService {
 
     @Override
     public View onCreateInputView() {
-        View keyboardView = getLayoutInflater().inflate(R.layout.keyboard_view, null);
+        keyboardView = getLayoutInflater().inflate(R.layout.keyboard_view, null);
         voiceButton = keyboardView.findViewById(R.id.btn_voice);
         
         voiceButton.setOnClickListener(v -> {
@@ -63,14 +76,42 @@ public class VoiceKeyboardService extends InputMethodService {
             speechRecognizer.startListening(speechIntent);
         });
         
+        applyCustomSettings();
         return keyboardView;
+    }
+
+    private void applyCustomSettings() {
+        SharedPreferences prefs = getSharedPreferences("KeyboardPrefs", MODE_PRIVATE);
+        
+        // Set the height dynamically
+        int height = prefs.getInt("height", 250);
+        float density = getResources().getDisplayMetrics().density;
+        int pxHeight = (int) (height * density); // Convert to exact screen pixels
+        
+        LinearLayout mainLayout = (LinearLayout) keyboardView;
+        ViewGroup.LayoutParams params = mainLayout.getLayoutParams();
+        if (params == null) params = new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, pxHeight);
+        params.height = pxHeight;
+        mainLayout.setLayoutParams(params);
+
+        // Set the theme color
+        String theme = prefs.getString("theme", "dark");
+        if (theme.equals("light")) {
+            mainLayout.setBackgroundColor(Color.parseColor("#E0E0E0"));
+        } else if (theme.equals("blue")) {
+            mainLayout.setBackgroundColor(Color.parseColor("#001F3F"));
+        } else {
+            mainLayout.setBackgroundColor(Color.parseColor("#121212"));
+        }
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
-        if (speechRecognizer != null) {
-            speechRecognizer.destroy();
+        if (speechRecognizer != null) speechRecognizer.destroy();
+        if (tts != null) {
+            tts.stop();
+            tts.shutdown();
         }
     }
 }
