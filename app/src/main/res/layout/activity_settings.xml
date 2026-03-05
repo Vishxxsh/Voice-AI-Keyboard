@@ -33,6 +33,15 @@
             android:text="2. Set as Default Keyboard"
             android:layout_marginBottom="32dp"/>
 
+        <Switch
+            android:id="@+id/switch_auto_tts"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Enable Automatic Talk Back"
+            android:textSize="18sp"
+            android:textColor="?android:attr/textColorPrimary"
+            android:layout_marginBottom="24dp"/>
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
