@@ -3,25 +3,37 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="?android:attr/colorBackground"
     android:padding="8dp">
 
     <Button
         android:id="@+id/btn_voice"
         android:layout_width="match_parent"
         android:layout_height="65dp"
-        android:text="🎤 Tap to Speak (AI Auto-Correct)"
+        android:text="🎤 Tap to Speak"
         android:backgroundTint="#005A9E"
         android:textColor="@android:color/white"
         android:textSize="18sp"
         android:textStyle="bold"
         android:layout_marginBottom="8dp"/>
 
+    <Button
+        android:id="@+id/btn_read_aloud"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:text="🔊 Read Text Aloud"
+        android:backgroundTint="#4CAF50"
+        android:textColor="@android:color/white"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        android:layout_marginBottom="8dp"/>
+
     <TextView
         android:layout_width="match_parent"
-        android:layout_height="220dp"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:gravity="center"
-        android:text="Standard Keyboard Area\n(We will build dynamic, resizable keys here next)"
+        android:text="Standard Keyboard Area\n(We will add the AI Brain next!)"
         android:textSize="16sp"
         android:textColor="?android:attr/textColorPrimary"/>
 
