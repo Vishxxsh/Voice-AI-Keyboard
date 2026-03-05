@@ -95,13 +95,19 @@ public class VoiceKeyboardService extends InputMethodService {
         mainLayout.setLayoutParams(params);
 
         // Set the theme color
-        String theme = prefs.getString("theme", "dark");
-        if (theme.equals("light")) {
-            mainLayout.setBackgroundColor(Color.parseColor("#E0E0E0"));
-        } else if (theme.equals("blue")) {
-            mainLayout.setBackgroundColor(Color.parseColor("#001F3F"));
-        } else {
+        String theme = prefs.getString("theme", "system");
+        if (theme.equals("custom")) {
+            try {
+                String hex = prefs.getString("hexColor", "#000000");
+                mainLayout.setBackgroundColor(Color.parseColor(hex));
+            } catch (Exception e) {
+                mainLayout.setBackgroundColor(Color.parseColor("#121212")); // Fallback if hex is invalid
+            }
+        } else if (theme.equals("dark")) {
             mainLayout.setBackgroundColor(Color.parseColor("#121212"));
+        } else {
+            // System Default (Auto): Sets a transparent background so it uses the layout's default system colors
+            mainLayout.setBackgroundColor(Color.TRANSPARENT); 
         }
     }
 
