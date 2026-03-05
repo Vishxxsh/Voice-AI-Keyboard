@@ -9,9 +9,13 @@ import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 import android.speech.tts.TextToSpeech;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.ExtractedText;
+import android.view.inputmethod.ExtractedTextRequest;
 import android.view.inputmethod.InputConnection;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import java.util.ArrayList;
@@ -20,20 +24,16 @@ import java.util.Locale;
 public class VoiceKeyboardService extends InputMethodService {
     private SpeechRecognizer speechRecognizer;
     private Intent speechIntent;
-    private Button voiceButton;
-    private Button readAloudButton;
     private TextToSpeech tts;
     private View keyboardView;
-    private String lastSpokenText = ""; // Memory to hold the text for the manual button
+    private Button btnDictate, btnReadBox, btnAiCorrect, btnAiDraft, btnBackspace, btnSwitchKb;
 
     @Override
     public void onCreate() {
         super.onCreate();
         
         tts = new TextToSpeech(this, status -> {
-            if (status == TextToSpeech.SUCCESS) {
-                tts.setLanguage(Locale.US);
-            }
+            if (status == TextToSpeech.SUCCESS) tts.setLanguage(Locale.US);
         });
 
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
@@ -42,29 +42,27 @@ public class VoiceKeyboardService extends InputMethodService {
         speechIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US");
 
         speechRecognizer.setRecognitionListener(new RecognitionListener() {
-            @Override public void onReadyForSpeech(Bundle params) { voiceButton.setText("Listening... Speak now"); }
+            @Override public void onReadyForSpeech(Bundle params) { btnDictate.setText("Listening..."); }
             @Override public void onBeginningOfSpeech() {}
             @Override public void onRmsChanged(float rmsdB) {}
             @Override public void onBufferReceived(byte[] buffer) {}
-            @Override public void onEndOfSpeech() { voiceButton.setText("Processing..."); }
-            @Override public void onError(int error) { voiceButton.setText("🎤 Tap to Speak"); }
+            @Override public void onEndOfSpeech() { btnDictate.setText("Processing..."); }
+            @Override public void onError(int error) { btnDictate.setText("🎤 Dictate (Raw Text)"); }
             @Override public void onResults(Bundle results) {
                 ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
                 if (matches != null && !matches.isEmpty()) {
-                    lastSpokenText = matches.get(0);
+                    String spokenText = matches.get(0);
                     InputConnection ic = getCurrentInputConnection();
                     if (ic != null) {
-                        ic.commitText(lastSpokenText + " ", 1); 
+                        ic.commitText(spokenText + " ", 1); 
                         
-                        // Check settings to see if it should talk automatically
                         SharedPreferences prefs = getSharedPreferences("KeyboardPrefs", MODE_PRIVATE);
-                        boolean autoTts = prefs.getBoolean("autoTts", true);
-                        if (autoTts) {
-                            tts.speak(lastSpokenText, TextToSpeech.QUEUE_FLUSH, null, null);
+                        if (prefs.getBoolean("autoTts", true)) {
+                            tts.speak(spokenText, TextToSpeech.QUEUE_FLUSH, null, null);
                         }
                     }
                 }
-                voiceButton.setText("🎤 Tap to Speak");
+                btnDictate.setText("🎤 Dictate (Raw Text)");
             }
             @Override public void onPartialResults(Bundle partialResults) {}
             @Override public void onEvent(int eventType, Bundle params) {}
@@ -74,38 +72,77 @@ public class VoiceKeyboardService extends InputMethodService {
     @Override
     public View onCreateInputView() {
         keyboardView = getLayoutInflater().inflate(R.layout.keyboard_view, null);
-        voiceButton = keyboardView.findViewById(R.id.btn_voice);
-        readAloudButton = keyboardView.findViewById(R.id.btn_read_aloud);
         
-        voiceButton.setOnClickListener(v -> {
-            voiceButton.setText("Starting mic...");
+        btnDictate = keyboardView.findViewById(R.id.btn_dictate);
+        btnReadBox = keyboardView.findViewById(R.id.btn_read_box);
+        btnAiCorrect = keyboardView.findViewById(R.id.btn_ai_correct);
+        btnAiDraft = keyboardView.findViewById(R.id.btn_ai_draft);
+        btnBackspace = keyboardView.findViewById(R.id.btn_backspace);
+        btnSwitchKb = keyboardView.findViewById(R.id.btn_switch_kb);
+        
+        // 1. Dictate Raw Text
+        btnDictate.setOnClickListener(v -> {
+            btnDictate.setText("Starting mic...");
             speechRecognizer.startListening(speechIntent);
         });
 
-        // Tells the manual button to read the saved text when tapped
-        readAloudButton.setOnClickListener(v -> {
-            if (!lastSpokenText.isEmpty()) {
-                tts.speak(lastSpokenText, TextToSpeech.QUEUE_FLUSH, null, null);
+        // 2. Read the entire text box aloud
+        btnReadBox.setOnClickListener(v -> {
+            String fullText = getEntireTextFromBox();
+            if (!fullText.isEmpty()) {
+                tts.speak(fullText, TextToSpeech.QUEUE_FLUSH, null, null);
             } else {
-                tts.speak("No text to read yet.", TextToSpeech.QUEUE_FLUSH, null, null);
+                tts.speak("The text box is empty.", TextToSpeech.QUEUE_FLUSH, null, null);
             }
+        });
+
+        // 3. AI Correct Placeholder
+        btnAiCorrect.setOnClickListener(v -> {
+            String fullText = getEntireTextFromBox();
+            if (!fullText.isEmpty()) {
+                getCurrentInputConnection().commitText("\n\n[AI PLUG-IN REQUIRED: Correcting grammar for -> " + fullText + "]\n", 1);
+            }
+        });
+
+        // 4. AI Draft Placeholder
+        btnAiDraft.setOnClickListener(v -> {
+            String fullText = getEntireTextFromBox();
+            if (!fullText.isEmpty()) {
+                getCurrentInputConnection().commitText("\n\n[AI PLUG-IN REQUIRED: Drafting message for Jacarti context based on -> " + fullText + "]\n", 1);
+            }
+        });
+
+        // 5. Backspace Button
+        btnBackspace.setOnClickListener(v -> {
+            InputConnection ic = getCurrentInputConnection();
+            if (ic != null) ic.sendKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL));
+        });
+
+        // 6. Switch Keyboard Button (Pulls up system keyboard selector)
+        btnSwitchKb.setOnClickListener(v -> {
+            InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+            if (imm != null) imm.showInputMethodPicker();
         });
         
         applyCustomSettings();
         return keyboardView;
     }
 
+    // Helper method to grab everything currently written in the app's text box
+    private String getEntireTextFromBox() {
+        InputConnection ic = getCurrentInputConnection();
+        if (ic != null) {
+            ExtractedText et = ic.getExtractedText(new ExtractedTextRequest(), 0);
+            if (et != null && et.text != null) {
+                return et.text.toString().trim();
+            }
+        }
+        return "";
+    }
+
     private void applyCustomSettings() {
         SharedPreferences prefs = getSharedPreferences("KeyboardPrefs", MODE_PRIVATE);
         
-        // Hide or Show the manual read button based on settings
-        boolean autoTts = prefs.getBoolean("autoTts", true);
-        if (autoTts) {
-            readAloudButton.setVisibility(View.GONE); // Hide it
-        } else {
-            readAloudButton.setVisibility(View.VISIBLE); // Show it
-        }
-
         int height = prefs.getInt("height", 250);
         float density = getResources().getDisplayMetrics().density;
         int pxHeight = (int) (height * density); 
@@ -121,14 +158,9 @@ public class VoiceKeyboardService extends InputMethodService {
         
         if (theme.equals("custom")) {
             try {
-                String hex = prefs.getString("hexColor", "#000000");
-                activeColor = Color.parseColor(hex);
-            } catch (Exception e) {
-                activeColor = Color.parseColor("#121212"); 
-            }
-        } else if (theme.equals("dark")) {
-            activeColor = Color.parseColor("#121212");
-        }
+                activeColor = Color.parseColor(prefs.getString("hexColor", "#000000"));
+            } catch (Exception e) { activeColor = Color.parseColor("#121212"); }
+        } else if (theme.equals("dark")) { activeColor = Color.parseColor("#121212"); }
 
         mainLayout.setBackgroundColor(activeColor);
 
@@ -142,9 +174,6 @@ public class VoiceKeyboardService extends InputMethodService {
     public void onDestroy() {
         super.onDestroy();
         if (speechRecognizer != null) speechRecognizer.destroy();
-        if (tts != null) {
-            tts.stop();
-            tts.shutdown();
-        }
+        if (tts != null) { tts.stop(); tts.shutdown(); }
     }
 }
