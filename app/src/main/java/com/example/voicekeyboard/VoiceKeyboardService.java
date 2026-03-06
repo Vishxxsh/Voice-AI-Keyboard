@@ -29,7 +29,9 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -52,8 +54,6 @@ public class VoiceKeyboardService extends InputMethodService {
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
         speechIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         speechIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        
-        // UPGRADED: Set to Indian English for significantly better accent recognition
         speechIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-IN");
 
         speechRecognizer.setRecognitionListener(new RecognitionListener() {
@@ -104,25 +104,20 @@ public class VoiceKeyboardService extends InputMethodService {
             String fullText = getEntireTextFromBox();
             if (!fullText.isEmpty()) {
                 tts.speak(fullText, TextToSpeech.QUEUE_FLUSH, null, null);
-            } else {
-                tts.speak("The text box is empty.", TextToSpeech.QUEUE_FLUSH, null, null);
             }
         });
 
-        // The AI Buttons
         btnAiCorrect.setOnClickListener(v -> {
             String rawText = getEntireTextFromBox();
             if (rawText.isEmpty()) return;
-            
             SharedPreferences prefs = getSharedPreferences("KeyboardPrefs", MODE_PRIVATE);
-            String prompt = prefs.getString("grammarPrompt", "Correct the grammar and spelling.");
+            String prompt = prefs.getString("grammarPrompt", "Correct the grammar and spelling. Reply ONLY with the corrected text.");
             callGeminiAPI(prompt, rawText, btnAiCorrect);
         });
 
         btnAiDraft.setOnClickListener(v -> {
             String rawText = getEntireTextFromBox();
             if (rawText.isEmpty()) return;
-            
             SharedPreferences prefs = getSharedPreferences("KeyboardPrefs", MODE_PRIVATE);
             String prompt = prefs.getString("draftPrompt", "Draft a professional message based on this prompt.");
             callGeminiAPI(prompt, rawText, btnAiDraft);
@@ -142,27 +137,25 @@ public class VoiceKeyboardService extends InputMethodService {
         return keyboardView;
     }
 
-    // THE BRAIN: Connects to Google's Servers
     private void callGeminiAPI(String systemRule, String userText, Button pressedButton) {
         SharedPreferences prefs = getSharedPreferences("KeyboardPrefs", MODE_PRIVATE);
         String apiKey = prefs.getString("apiKey", "");
 
         if (apiKey.isEmpty()) {
-            getCurrentInputConnection().commitText("\n[Error: Please enter your Gemini API Key in the Keyboard Settings]\n", 1);
+            getCurrentInputConnection().commitText("\n[Error: Please enter your Gemini API Key in Settings]\n", 1);
             return;
         }
 
-        // Change button text so you know it is working
         String originalText = pressedButton.getText().toString();
         pressedButton.setText("Thinking...");
         pressedButton.setEnabled(false);
 
-        // Run the internet call in the background
         ExecutorService executor = Executors.newSingleThreadExecutor();
         Handler handler = new Handler(Looper.getMainLooper());
 
         executor.execute(() -> {
             String finalResult = "";
+            boolean callSuccessful = false;
             try {
                 URL url = new URL("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -170,14 +163,19 @@ public class VoiceKeyboardService extends InputMethodService {
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setDoOutput(true);
 
-                // Package the System Rule and User Text into JSON
+                // Build the precise JSON payload for Gemini API
                 JSONObject payload = new JSONObject();
+                
+                // System Instruction block
                 JSONObject sysInstruction = new JSONObject();
+                JSONArray sysPartsArray = new JSONArray();
                 JSONObject sysPart = new JSONObject();
                 sysPart.put("text", systemRule);
-                sysInstruction.put("parts", sysPart);
-                payload.put("system_instruction", sysInstruction);
+                sysPartsArray.put(sysPart);
+                sysInstruction.put("parts", sysPartsArray);
+                payload.put("systemInstruction", sysInstruction);
 
+                // User Content block
                 JSONObject contentObj = new JSONObject();
                 JSONArray userPartsArray = new JSONArray();
                 JSONObject userPart = new JSONObject();
@@ -188,12 +186,10 @@ public class VoiceKeyboardService extends InputMethodService {
                 contentsArray.put(contentObj);
                 payload.put("contents", contentsArray);
 
-                // Send the request
                 OutputStream os = conn.getOutputStream();
                 os.write(payload.toString().getBytes("UTF-8"));
                 os.close();
 
-                // Read the AI's response
                 BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"));
                 StringBuilder response = new StringBuilder();
                 String responseLine;
@@ -208,28 +204,46 @@ public class VoiceKeyboardService extends InputMethodService {
                         .getJSONArray("parts")
                         .getJSONObject(0)
                         .getString("text");
+                        
+                callSuccessful = true;
 
             } catch (Exception e) {
-                finalResult = "[Error connecting to AI: " + e.getMessage() + "]";
+                finalResult = "\n[API Error: Please check your API key and connection.]\n";
             }
 
-            // Bring the result back to the main thread and update the keyboard
+            // --- NEW: Increment the Daily Tracker on Success ---
+            if (callSuccessful) {
+                String currentDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+                String savedDate = prefs.getString("lastApiDate", "");
+                int apiCount = prefs.getInt("apiCount", 0);
+                
+                if (!currentDate.equals(savedDate)) {
+                    apiCount = 0; // Reset if it's a new day
+                }
+                apiCount++; // Add 1 to the tracker
+                
+                prefs.edit()
+                     .putInt("apiCount", apiCount)
+                     .putString("lastApiDate", currentDate)
+                     .apply();
+            }
+            // ---------------------------------------------------
+
             final String aiOutput = finalResult;
             handler.post(() -> {
                 InputConnection ic = getCurrentInputConnection();
-                if (ic != null) {
-                    // Delete the raw dirty text
+                if (ic != null && callSuccessful) {
                     CharSequence currentText = ic.getExtractedText(new ExtractedTextRequest(), 0).text;
                     if (currentText != null) {
                         CharSequence beforeCursor = ic.getTextBeforeCursor(currentText.length(), 0);
                         CharSequence afterCursor = ic.getTextAfterCursor(currentText.length(), 0);
                         ic.deleteSurroundingText(beforeCursor.length(), afterCursor.length());
                     }
-                    // Type the final polished text
                     ic.commitText(aiOutput, 1);
+                } else if (ic != null) {
+                    ic.commitText(aiOutput, 1); // Print the error message if it failed
                 }
                 
-                // Reset the button
                 pressedButton.setText(originalText);
                 pressedButton.setEnabled(true);
             });
@@ -240,16 +254,13 @@ public class VoiceKeyboardService extends InputMethodService {
         InputConnection ic = getCurrentInputConnection();
         if (ic != null) {
             ExtractedText et = ic.getExtractedText(new ExtractedTextRequest(), 0);
-            if (et != null && et.text != null) {
-                return et.text.toString().trim();
-            }
+            if (et != null && et.text != null) return et.text.toString().trim();
         }
         return "";
     }
 
     private void applyCustomSettings() {
         SharedPreferences prefs = getSharedPreferences("KeyboardPrefs", MODE_PRIVATE);
-        
         int height = prefs.getInt("height", 250);
         float density = getResources().getDisplayMetrics().density;
         int pxHeight = (int) (height * density); 
@@ -264,17 +275,14 @@ public class VoiceKeyboardService extends InputMethodService {
         String theme = prefs.getString("theme", "system");
         
         if (theme.equals("custom")) {
-            try {
-                activeColor = Color.parseColor(prefs.getString("hexColor", "#000000"));
+            try { activeColor = Color.parseColor(prefs.getString("hexColor", "#000000"));
             } catch (Exception e) { activeColor = Color.parseColor("#121212"); }
         } else if (theme.equals("dark")) { activeColor = Color.parseColor("#121212"); }
 
         mainLayout.setBackgroundColor(activeColor);
 
         android.app.Dialog dialog = getWindow();
-        if (dialog != null && dialog.getWindow() != null) {
-            dialog.getWindow().setNavigationBarColor(activeColor);
-        }
+        if (dialog != null && dialog.getWindow() != null) dialog.getWindow().setNavigationBarColor(activeColor);
     }
 
     @Override
