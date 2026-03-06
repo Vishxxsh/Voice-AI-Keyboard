@@ -45,6 +45,50 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:text="AI Brain Configuration"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="?android:attr/textColorPrimary"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="8dp"/>
+
+        <EditText
+            android:id="@+id/input_api_key"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Paste Gemini API Key Here"
+            android:inputType="textPassword"
+            android:textColor="?android:attr/textColorPrimary"
+            android:layout_marginBottom="16dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Custom Prompt: Correct Grammar"
+            android:textColor="?android:attr/textColorPrimary"/>
+        <EditText
+            android:id="@+id/input_grammar_prompt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="e.g., Fix spelling and reply ONLY with text"
+            android:textColor="?android:attr/textColorPrimary"
+            android:layout_marginBottom="16dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Custom Prompt: Draft Message"
+            android:textColor="?android:attr/textColorPrimary"/>
+        <EditText
+            android:id="@+id/input_draft_prompt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="e.g., Write a highly detailed, professional email"
+            android:textColor="?android:attr/textColorPrimary"
+            android:layout_marginBottom="32dp"/>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:text="Keyboard Height"
             android:textSize="18sp"
             android:textColor="?android:attr/textColorPrimary"/>
@@ -90,7 +134,8 @@
             android:layout_height="60dp"
             android:text="Save Settings"
             android:backgroundTint="#005A9E"
-            android:textColor="@android:color/white"/>
+            android:textColor="@android:color/white"
+            android:layout_marginBottom="32dp"/>
 
     </LinearLayout>
 </ScrollView>
