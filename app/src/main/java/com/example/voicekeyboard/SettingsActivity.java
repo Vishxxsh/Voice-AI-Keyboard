@@ -11,7 +11,12 @@ import android.widget.EditText;
 import android.widget.RadioGroup;
 import android.widget.SeekBar;
 import android.widget.Switch;
+import android.widget.TextView;
 import android.widget.Toast;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 public class SettingsActivity extends Activity {
     @Override
@@ -23,7 +28,7 @@ public class SettingsActivity extends Activity {
         Button btnSelect = findViewById(R.id.btn_select);
         Switch switchAutoTts = findViewById(R.id.switch_auto_tts);
         
-        // New AI Elements
+        TextView textApiUsage = findViewById(R.id.text_api_usage);
         EditText inputApiKey = findViewById(R.id.input_api_key);
         EditText inputGrammarPrompt = findViewById(R.id.input_grammar_prompt);
         EditText inputDraftPrompt = findViewById(R.id.input_draft_prompt);
@@ -41,9 +46,20 @@ public class SettingsActivity extends Activity {
 
         SharedPreferences prefs = getSharedPreferences("KeyboardPrefs", MODE_PRIVATE);
         
+        // --- NEW: Daily API Counter Logic ---
+        String currentDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+        String savedDate = prefs.getString("lastApiDate", "");
+        int apiCount = prefs.getInt("apiCount", 0);
+        
+        // If it is a new day, reset the counter to 0 visually
+        if (!currentDate.equals(savedDate)) {
+            apiCount = 0;
+        }
+        textApiUsage.setText("API Calls Used Today: " + apiCount + " / 1000");
+        // ------------------------------------
+
         switchAutoTts.setChecked(prefs.getBoolean("autoTts", true));
         
-        // Load AI Settings (with smart defaults if left blank)
         inputApiKey.setText(prefs.getString("apiKey", ""));
         inputGrammarPrompt.setText(prefs.getString("grammarPrompt", "You are an expert editor. Fix all spelling, grammar, and punctuation mistakes in the following text. Do not add any conversational filler. Respond ONLY with the corrected text."));
         inputDraftPrompt.setText(prefs.getString("draftPrompt", "You are a highly professional executive assistant. Draft a polite, clear, and well-formatted message based on the following instructions."));
@@ -58,14 +74,10 @@ public class SettingsActivity extends Activity {
 
         btnSave.setOnClickListener(v -> {
             SharedPreferences.Editor editor = prefs.edit();
-            
             editor.putBoolean("autoTts", switchAutoTts.isChecked());
-            
-            // Save AI Settings
             editor.putString("apiKey", inputApiKey.getText().toString().trim());
             editor.putString("grammarPrompt", inputGrammarPrompt.getText().toString().trim());
             editor.putString("draftPrompt", inputDraftPrompt.getText().toString().trim());
-
             editor.putInt("height", seekHeight.getProgress());
             editor.putString("hexColor", inputHex.getText().toString().trim());
             
