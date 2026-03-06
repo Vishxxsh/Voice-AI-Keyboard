@@ -211,7 +211,6 @@ public class VoiceKeyboardService extends InputMethodService {
                 finalResult = "\n[API Error: Please check your API key and connection.]\n";
             }
 
-            // --- NEW: Increment the Daily Tracker on Success ---
             if (callSuccessful) {
                 String currentDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
                 String savedDate = prefs.getString("lastApiDate", "");
@@ -227,12 +226,14 @@ public class VoiceKeyboardService extends InputMethodService {
                      .putString("lastApiDate", currentDate)
                      .apply();
             }
-            // ---------------------------------------------------
 
+            // THE FIX: Take a final "snapshot" of the boolean before passing it to the lambda
             final String aiOutput = finalResult;
+            final boolean isSuccess = callSuccessful; 
+
             handler.post(() -> {
                 InputConnection ic = getCurrentInputConnection();
-                if (ic != null && callSuccessful) {
+                if (ic != null && isSuccess) {
                     CharSequence currentText = ic.getExtractedText(new ExtractedTextRequest(), 0).text;
                     if (currentText != null) {
                         CharSequence beforeCursor = ic.getTextBeforeCursor(currentText.length(), 0);
