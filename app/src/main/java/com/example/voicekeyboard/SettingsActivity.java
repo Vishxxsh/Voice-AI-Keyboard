@@ -22,6 +22,12 @@ public class SettingsActivity extends Activity {
         Button btnEnable = findViewById(R.id.btn_enable);
         Button btnSelect = findViewById(R.id.btn_select);
         Switch switchAutoTts = findViewById(R.id.switch_auto_tts);
+        
+        // New AI Elements
+        EditText inputApiKey = findViewById(R.id.input_api_key);
+        EditText inputGrammarPrompt = findViewById(R.id.input_grammar_prompt);
+        EditText inputDraftPrompt = findViewById(R.id.input_draft_prompt);
+
         SeekBar seekHeight = findViewById(R.id.seek_height);
         RadioGroup radioTheme = findViewById(R.id.radio_theme);
         EditText inputHex = findViewById(R.id.input_hex);
@@ -35,8 +41,13 @@ public class SettingsActivity extends Activity {
 
         SharedPreferences prefs = getSharedPreferences("KeyboardPrefs", MODE_PRIVATE);
         
-        // Load the saved switch state (Defaults to True)
         switchAutoTts.setChecked(prefs.getBoolean("autoTts", true));
+        
+        // Load AI Settings (with smart defaults if left blank)
+        inputApiKey.setText(prefs.getString("apiKey", ""));
+        inputGrammarPrompt.setText(prefs.getString("grammarPrompt", "You are an expert editor. Fix all spelling, grammar, and punctuation mistakes in the following text. Do not add any conversational filler. Respond ONLY with the corrected text."));
+        inputDraftPrompt.setText(prefs.getString("draftPrompt", "You are a highly professional executive assistant. Draft a polite, clear, and well-formatted message based on the following instructions."));
+
         seekHeight.setProgress(prefs.getInt("height", 250));
         inputHex.setText(prefs.getString("hexColor", "#000000"));
         
@@ -48,10 +59,15 @@ public class SettingsActivity extends Activity {
         btnSave.setOnClickListener(v -> {
             SharedPreferences.Editor editor = prefs.edit();
             
-            // Save the switch state
             editor.putBoolean("autoTts", switchAutoTts.isChecked());
+            
+            // Save AI Settings
+            editor.putString("apiKey", inputApiKey.getText().toString().trim());
+            editor.putString("grammarPrompt", inputGrammarPrompt.getText().toString().trim());
+            editor.putString("draftPrompt", inputDraftPrompt.getText().toString().trim());
+
             editor.putInt("height", seekHeight.getProgress());
-            editor.putString("hexColor", inputHex.getText().toString());
+            editor.putString("hexColor", inputHex.getText().toString().trim());
             
             int selectedId = radioTheme.getCheckedRadioButtonId();
             if (selectedId == R.id.theme_custom) editor.putString("theme", "custom");
