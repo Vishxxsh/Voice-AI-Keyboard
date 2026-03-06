@@ -71,4 +71,216 @@ public class VoiceKeyboardService extends InputMethodService {
                     if (ic != null) {
                         ic.commitText(spokenText + " ", 1); 
                         
-                        SharedPreferences prefs = getSharedPreferences("
+                        SharedPreferences prefs = getSharedPreferences("KeyboardPrefs", MODE_PRIVATE);
+                        if (prefs.getBoolean("autoTts", true)) {
+                            tts.speak(spokenText, TextToSpeech.QUEUE_FLUSH, null, null);
+                        }
+                    }
+                }
+                btnDictate.setText("🎤 Dictate (Raw Text)");
+            }
+            @Override public void onPartialResults(Bundle partialResults) {}
+            @Override public void onEvent(int eventType, Bundle params) {}
+        });
+    }
+
+    @Override
+    public View onCreateInputView() {
+        keyboardView = getLayoutInflater().inflate(R.layout.keyboard_view, null);
+        
+        btnDictate = keyboardView.findViewById(R.id.btn_dictate);
+        btnReadBox = keyboardView.findViewById(R.id.btn_read_box);
+        btnAiCorrect = keyboardView.findViewById(R.id.btn_ai_correct);
+        btnAiDraft = keyboardView.findViewById(R.id.btn_ai_draft);
+        btnBackspace = keyboardView.findViewById(R.id.btn_backspace);
+        btnSwitchKb = keyboardView.findViewById(R.id.btn_switch_kb);
+        
+        btnDictate.setOnClickListener(v -> {
+            btnDictate.setText("Starting mic...");
+            speechRecognizer.startListening(speechIntent);
+        });
+
+        btnReadBox.setOnClickListener(v -> {
+            String fullText = getEntireTextFromBox();
+            if (!fullText.isEmpty()) {
+                tts.speak(fullText, TextToSpeech.QUEUE_FLUSH, null, null);
+            } else {
+                tts.speak("The text box is empty.", TextToSpeech.QUEUE_FLUSH, null, null);
+            }
+        });
+
+        // The AI Buttons
+        btnAiCorrect.setOnClickListener(v -> {
+            String rawText = getEntireTextFromBox();
+            if (rawText.isEmpty()) return;
+            
+            SharedPreferences prefs = getSharedPreferences("KeyboardPrefs", MODE_PRIVATE);
+            String prompt = prefs.getString("grammarPrompt", "Correct the grammar and spelling.");
+            callGeminiAPI(prompt, rawText, btnAiCorrect);
+        });
+
+        btnAiDraft.setOnClickListener(v -> {
+            String rawText = getEntireTextFromBox();
+            if (rawText.isEmpty()) return;
+            
+            SharedPreferences prefs = getSharedPreferences("KeyboardPrefs", MODE_PRIVATE);
+            String prompt = prefs.getString("draftPrompt", "Draft a professional message based on this prompt.");
+            callGeminiAPI(prompt, rawText, btnAiDraft);
+        });
+
+        btnBackspace.setOnClickListener(v -> {
+            InputConnection ic = getCurrentInputConnection();
+            if (ic != null) ic.sendKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL));
+        });
+
+        btnSwitchKb.setOnClickListener(v -> {
+            InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+            if (imm != null) imm.showInputMethodPicker();
+        });
+        
+        applyCustomSettings();
+        return keyboardView;
+    }
+
+    // THE BRAIN: Connects to Google's Servers
+    private void callGeminiAPI(String systemRule, String userText, Button pressedButton) {
+        SharedPreferences prefs = getSharedPreferences("KeyboardPrefs", MODE_PRIVATE);
+        String apiKey = prefs.getString("apiKey", "");
+
+        if (apiKey.isEmpty()) {
+            getCurrentInputConnection().commitText("\n[Error: Please enter your Gemini API Key in the Keyboard Settings]\n", 1);
+            return;
+        }
+
+        // Change button text so you know it is working
+        String originalText = pressedButton.getText().toString();
+        pressedButton.setText("Thinking...");
+        pressedButton.setEnabled(false);
+
+        // Run the internet call in the background
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Handler handler = new Handler(Looper.getMainLooper());
+
+        executor.execute(() -> {
+            String finalResult = "";
+            try {
+                URL url = new URL("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setDoOutput(true);
+
+                // Package the System Rule and User Text into JSON
+                JSONObject payload = new JSONObject();
+                JSONObject sysInstruction = new JSONObject();
+                JSONObject sysPart = new JSONObject();
+                sysPart.put("text", systemRule);
+                sysInstruction.put("parts", sysPart);
+                payload.put("system_instruction", sysInstruction);
+
+                JSONObject contentObj = new JSONObject();
+                JSONArray userPartsArray = new JSONArray();
+                JSONObject userPart = new JSONObject();
+                userPart.put("text", userText);
+                userPartsArray.put(userPart);
+                contentObj.put("parts", userPartsArray);
+                JSONArray contentsArray = new JSONArray();
+                contentsArray.put(contentObj);
+                payload.put("contents", contentsArray);
+
+                // Send the request
+                OutputStream os = conn.getOutputStream();
+                os.write(payload.toString().getBytes("UTF-8"));
+                os.close();
+
+                // Read the AI's response
+                BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"));
+                StringBuilder response = new StringBuilder();
+                String responseLine;
+                while ((responseLine = br.readLine()) != null) {
+                    response.append(responseLine.trim());
+                }
+                
+                JSONObject jsonResponse = new JSONObject(response.toString());
+                finalResult = jsonResponse.getJSONArray("candidates")
+                        .getJSONObject(0)
+                        .getJSONObject("content")
+                        .getJSONArray("parts")
+                        .getJSONObject(0)
+                        .getString("text");
+
+            } catch (Exception e) {
+                finalResult = "[Error connecting to AI: " + e.getMessage() + "]";
+            }
+
+            // Bring the result back to the main thread and update the keyboard
+            final String aiOutput = finalResult;
+            handler.post(() -> {
+                InputConnection ic = getCurrentInputConnection();
+                if (ic != null) {
+                    // Delete the raw dirty text
+                    CharSequence currentText = ic.getExtractedText(new ExtractedTextRequest(), 0).text;
+                    if (currentText != null) {
+                        CharSequence beforeCursor = ic.getTextBeforeCursor(currentText.length(), 0);
+                        CharSequence afterCursor = ic.getTextAfterCursor(currentText.length(), 0);
+                        ic.deleteSurroundingText(beforeCursor.length(), afterCursor.length());
+                    }
+                    // Type the final polished text
+                    ic.commitText(aiOutput, 1);
+                }
+                
+                // Reset the button
+                pressedButton.setText(originalText);
+                pressedButton.setEnabled(true);
+            });
+        });
+    }
+
+    private String getEntireTextFromBox() {
+        InputConnection ic = getCurrentInputConnection();
+        if (ic != null) {
+            ExtractedText et = ic.getExtractedText(new ExtractedTextRequest(), 0);
+            if (et != null && et.text != null) {
+                return et.text.toString().trim();
+            }
+        }
+        return "";
+    }
+
+    private void applyCustomSettings() {
+        SharedPreferences prefs = getSharedPreferences("KeyboardPrefs", MODE_PRIVATE);
+        
+        int height = prefs.getInt("height", 250);
+        float density = getResources().getDisplayMetrics().density;
+        int pxHeight = (int) (height * density); 
+        
+        LinearLayout mainLayout = (LinearLayout) keyboardView;
+        ViewGroup.LayoutParams params = mainLayout.getLayoutParams();
+        if (params == null) params = new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, pxHeight);
+        params.height = pxHeight;
+        mainLayout.setLayoutParams(params);
+
+        int activeColor = Color.TRANSPARENT; 
+        String theme = prefs.getString("theme", "system");
+        
+        if (theme.equals("custom")) {
+            try {
+                activeColor = Color.parseColor(prefs.getString("hexColor", "#000000"));
+            } catch (Exception e) { activeColor = Color.parseColor("#121212"); }
+        } else if (theme.equals("dark")) { activeColor = Color.parseColor("#121212"); }
+
+        mainLayout.setBackgroundColor(activeColor);
+
+        android.app.Dialog dialog = getWindow();
+        if (dialog != null && dialog.getWindow() != null) {
+            dialog.getWindow().setNavigationBarColor(activeColor);
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (speechRecognizer != null) speechRecognizer.destroy();
+        if (tts != null) { tts.stop(); tts.shutdown(); }
+    }
+}
